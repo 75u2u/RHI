@@ -1,4 +1,4 @@
-# RHI ( Remort Haptic Interface )
+# RHI ( Remote Haptic Interface )
 
 RHIは，Wi-Fi環境下の遠隔地間で仮想的な触感の共有を実現するデバイスです．  
 
