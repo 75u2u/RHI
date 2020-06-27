@@ -147,8 +147,8 @@ void messageReceived(String &topic, String &payload) {
   payloadID = payload.substring(0, 8);
   Serial.println("payloadID:" + payloadID);
   payloadValue = payload.substring(9);
-////  if(topic == "/pressure" && payloadValue.toInt() > 0 && payloadID != RHI_ID) { //エコーバック対策
-  if(topic == "/pressure" && payloadValue.toInt() > 0) {  // エコーバック誘発(デバッグ用)
+  if(topic == "/pressure" && payloadValue.toInt() > 0 && payloadID != RHI_ID) { //エコーバック対策
+  ////if(topic == "/pressure" && payloadValue.toInt() > 0) {  // エコーバック誘発(デバッグ用)
       ledcWrite(0, payloadValue.toInt());     // [0] <-弱- [payloadValue] -強-> [255]
       delay(10);                              // 振動間隔
   } else {
