@@ -41,6 +41,9 @@ boolean mqttsetupFlag = false;
 MQTTClient mqttclient;
 unsigned long lastMillis = 0;
 
+String payloadID = " ";
+String payloadValue = " ";
+int tmp_payloadValue = 0;
 
 void connect() {
   /*
@@ -54,38 +57,14 @@ void connect() {
   */
   randNum = random(4096, 65536); // 4096~65535の乱数(0埋め用)
   RHI_ID = String("RHI_"+String(randNum, HEX));
-  while (!mqttclient.connect(RHI_ID.c_str(), "AAA", "BBB")) { // AAA: pub_token, BBB:sub_token
+  while (!mqttclient.connect(RHI_ID.c_str(), "6ca7a569", "91d9b265f7ac5cab")) { // AAA: pub_token, BBB:sub_token
     Serial.print(".");
     delay(1000);
   }
-
   Serial.println("\nconnected!");
-
   mqttclient.subscribe("/pressure");
-  // wificlient.unsubscribe("/hello");
 }
 
-
-void messageReceived(String &topic, String &payload) {
-  Serial.println("incoming: " + topic + " - " + payload); // RHI_FFFF.512
-  String payloadID = payload.substring(0, 8);
-  Serial.println("payloadID:" + payloadID);
-  String payloadValue = payload.substring(9);
-  Serial.println("payloadValue:" + payloadValue);
-  if(topic == "/pressure" && payloadValue.toInt() < 1024 && payloadID != RHI_ID) {
-    //digitalWrite(SIGPIN, HIGH);
-    ledcWrite(0, 255-(payload.toInt()/4));
-    digitalWrite(LEDPIN, HIGH);
-    delay(50);
-    //digitalWrite(SIGPIN, LOW);
-    digitalWrite(LEDPIN, LOW);
-    ledcWrite(0, 0);
-  } 
-  else {
-    //digitalWrite(SIGPIN, LOW);
-    ledcWrite(0, 0);
-  }
-}
 
 void setup() {
   //pinMode(SIGPIN, OUTPUT);
@@ -130,24 +109,73 @@ void loop() {
       connect();
     }
   }
-/*
-  // publish a message roughly every second.
-  if (millis() - lastMillis > 3000) {
-    lastMillis = millis();
-    wificlient.publish("/hello", "world");
-  }
-*/
-  // 送信
-  vol_value = analogRead(33)/4;
-  //Serial.println(vol_value);
-  if(vol_value < 1023) {
-    msg = String(RHI_ID + "." + vol_value);    //TODO msgに固有ID付与する．送信時に振動させないため
+  // メッセージ送信
+  messageSend();
+  // メッセージ受信した場合の処理
+  mqttclient.onMessage(messageReceived);
+  // アクチュエータへの出力値
+  Serial.println("Output: " + payloadValue);
+  // 出力値の減衰処理
+  Damping();
+  
+}
+
+
+void messageSend() {
+  vol_value = 255 - analogRead(33)/16;          // センサ値を256段階で表現 [0] <-弱- [vol_value] -強-> [255]
+  if(vol_value > 0) {
+    if(vol_value < 255 && vol_value >= 128) {
+      Serial.println("HIGH");
+      vol_value = 171;
+    }
+    if(vol_value < 128 && vol_value >= 64) {
+      Serial.println("MIDDLE");
+      vol_value = 127;
+    }
+    if(vol_value < 64) {
+      Serial.println("LOW");
+      vol_value = 63;
+    }
+    msg = String(RHI_ID + "." + vol_value);    //エコーバック防止のためmsgに固有ID付与
     mqttclient.publish("/pressure", msg);
   }
-  // 受信
-  mqttclient.onMessage(messageReceived);
-  //topic = " ";
-  //payload = " ";
+}
+
+
+void messageReceived(String &topic, String &payload) {
+  Serial.println("incoming: " + topic + " - " + payload); // RHI_FFFF.512
+  payloadID = payload.substring(0, 8);
+  Serial.println("payloadID:" + payloadID);
+  payloadValue = payload.substring(9);
+////  if(topic == "/pressure" && payloadValue.toInt() > 0 && payloadID != RHI_ID) { //エコーバック対策
+  if(topic == "/pressure" && payloadValue.toInt() > 0) {  // エコーバック誘発(デバッグ用)
+      ledcWrite(0, payloadValue.toInt());     // [0] <-弱- [payloadValue] -強-> [255]
+      delay(10);                              // 振動間隔
+  } else {
+    ledcWrite(0, 0);
+  }
+}
+
+
+void Damping() {
+  if(payloadValue.toInt() > 0) {
+    ledcWrite(0, payloadValue.toInt());         // [0] <-弱- [payloadValue] -強-> [255]
+    delay(10);                                  // 振動間隔
+    tmp_payloadValue = payloadValue.toInt();
+    if(tmp_payloadValue >= 171) {
+      tmp_payloadValue = 127;
+      payloadValue = tmp_payloadValue;
+    }
+    else if(tmp_payloadValue >= 127) {
+      tmp_payloadValue = 64;
+      payloadValue = tmp_payloadValue;
+    } else {
+      tmp_payloadValue = 0;
+      payloadValue = tmp_payloadValue;
+    }
+  } else {
+    ledcWrite(0, 0);
+  }
 }
 
 
