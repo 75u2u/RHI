@@ -55,9 +55,15 @@ void connect() {
   // shiftrのkeyとSecretを入力
   Serial.print("\nconnecting...");
   */
-  randNum = random(4096, 65536); // 4096~65535の乱数(0埋め用)
-  RHI_ID = String("RHI_"+String(randNum, HEX));
-  while (!mqttclient.connect(RHI_ID.c_str(), "6ca7a569", "91d9b265f7ac5cab")) { // AAA: pub_token, BBB:sub_token
+  
+  uint8_t mac[7];
+  esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+  char id[10];
+
+  sprintf(id,"%02X%02X%02X",mac[3],mac[4],mac[5]);
+  
+  RHI_ID = String("RHI_"+String(id));
+  while (!mqttclient.connect(RHI_ID.c_str(), "6ca7a569", "91d9b265f7ac5cab")) {
     Serial.print(".");
     delay(1000);
   }
@@ -67,7 +73,6 @@ void connect() {
 
 
 void setup() {
-  //pinMode(SIGPIN, OUTPUT);
   ledcSetup(0, 12800, 8); // 使用するタイマーのチャネルと周波数を設定
   ledcAttachPin(pwmPin, 0);
   pinMode(LEDPIN, OUTPUT);
@@ -117,7 +122,6 @@ void loop() {
   Serial.println("Output: " + payloadValue);
   // 出力値の減衰処理
   Damping();
-  
 }
 
 
@@ -136,7 +140,7 @@ void messageSend() {
       Serial.println("LOW");
       vol_value = 63;
     }
-    msg = String(RHI_ID + "." + vol_value);    //エコーバック防止のためmsgに固有ID付与
+    msg = String(RHI_ID + "." + vol_value);    // エコーバック防止のためmsgに固有ID付与
     mqttclient.publish("/pressure", msg);
   }
 }
