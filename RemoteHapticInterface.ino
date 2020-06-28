@@ -6,8 +6,7 @@
 #include "ESP32_WebGet.h" //mgo-tec library ver 1.12
 #include <MQTTClient.h>
 
-//#define SIGPIN 12
-#define LEDPIN 23
+#define LEDPIN 2
 
 const int pwmPin = A14;
 
@@ -30,7 +29,6 @@ String Sel_SSID_PASS_str = " ";
 String RHI_ID = " ";
 String msg = " ";
 long randNum = 0;
-int vol_value = 0;
 
 uint32_t scanLastTime = 0;
 boolean First_Scan_Set = true;
@@ -45,6 +43,9 @@ String payloadID = " ";
 String payloadValue = " ";
 int tmp_payloadValue = 0;
 
+int Value;
+boolean pulseFlag = false;
+
 void connect() {
   /*
   Serial.print("checking wifi...");
@@ -55,7 +56,6 @@ void connect() {
   // shiftrのkeyとSecretを入力
   Serial.print("\nconnecting...");
   */
-  
   uint8_t mac[7];
   esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
   char id[10];
@@ -99,7 +99,6 @@ void loop() {
     wificlient_connect();
     wifi_scan(30000);
   }
-  
   if(onlineFlag == true) {
    if(mqttsetupFlag == false) { 
       // MQTT
@@ -118,67 +117,32 @@ void loop() {
   messageSend();
   // メッセージ受信した場合の処理
   mqttclient.onMessage(messageReceived);
-  // アクチュエータへの出力値
   Serial.println("Output: " + payloadValue);
-  // 出力値の減衰処理
-  Damping();
 }
 
 
 void messageSend() {
-  vol_value = 255 - analogRead(33)/16;          // センサ値を256段階で表現 [0] <-弱- [vol_value] -強-> [255]
-  if(vol_value > 0) {
-    if(vol_value < 255 && vol_value >= 128) {
-      Serial.println("HIGH");
-      vol_value = 171;
-    }
-    if(vol_value < 128 && vol_value >= 64) {
-      Serial.println("MIDDLE");
-      vol_value = 127;
-    }
-    if(vol_value < 64) {
-      Serial.println("LOW");
-      vol_value = 63;
-    }
-    msg = String(RHI_ID + "." + vol_value);    // エコーバック防止のためmsgに固有ID付与
+  if((255 - analogRead(33)/16) > 0 && pulseFlag == false) {
+    pulseFlag = true;
+    msg = String(RHI_ID + "." + 255);    // エコーバック防止のためmsgに固有ID付与
     mqttclient.publish("/pressure", msg);
+  }
+  if((255 - analogRead(33)/16) == 0 && pulseFlag == true) {
+    msg = String(RHI_ID + "." + 0);      // エコーバック防止のためmsgに固有ID付与
+    mqttclient.publish("/pressure", msg);
+    pulseFlag = false;
   }
 }
 
 
 void messageReceived(String &topic, String &payload) {
-  Serial.println("incoming: " + topic + " - " + payload); // RHI_FFFF.512
-  payloadID = payload.substring(0, 8);
-  Serial.println("payloadID:" + payloadID);
-  payloadValue = payload.substring(9);
-  if(topic == "/pressure" && payloadValue.toInt() > 0 && payloadID != RHI_ID) { //エコーバック対策
-  ////if(topic == "/pressure" && payloadValue.toInt() > 0) {  // エコーバック誘発(デバッグ用)
-      ledcWrite(0, payloadValue.toInt());     // [0] <-弱- [payloadValue] -強-> [255]
-      delay(10);                              // 振動間隔
-  } else {
-    ledcWrite(0, 0);
-  }
-}
-
-
-void Damping() {
-  if(payloadValue.toInt() > 0) {
-    ledcWrite(0, payloadValue.toInt());         // [0] <-弱- [payloadValue] -強-> [255]
-    delay(10);                                  // 振動間隔
-    tmp_payloadValue = payloadValue.toInt();
-    if(tmp_payloadValue >= 171) {
-      tmp_payloadValue = 127;
-      payloadValue = tmp_payloadValue;
-    }
-    else if(tmp_payloadValue >= 127) {
-      tmp_payloadValue = 64;
-      payloadValue = tmp_payloadValue;
-    } else {
-      tmp_payloadValue = 0;
-      payloadValue = tmp_payloadValue;
-    }
-  } else {
-    ledcWrite(0, 0);
+  Serial.println("incoming: " + topic + " - " + payload); // RHI_FFFFFF.255
+  payloadID = payload.substring(0, 10);
+  payloadValue = payload.substring(11);
+  Value = payloadValue.toInt();
+  if(topic == "/pressure" && payloadID != RHI_ID) { //エコーバック対策
+  ////if(topic == "/pressure") {  // エコーバック誘発(デバッグ用)
+    ledcWrite(0, Value);
   }
 }
 
