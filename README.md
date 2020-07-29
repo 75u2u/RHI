@@ -39,5 +39,6 @@ MQTTClient.h
 
 
 ## 関連資料
-[取扱説明書](https://drive.google.com/file/d/1OnfZ7CJ3oQlzacXujdfNEwG4676FHzpE/view?usp=sharing)  
-[技術仕様書](https://drive.google.com/file/d/16VWp5jdazSgMMINDSfsTfyyBsWf8V2nL/view?usp=sharing)  
+[取扱説明書](https://docs.google.com/presentation/d/1A6hZMrNEB62BZ_IO-AvbB-Tnsj0usCyL3eZcoHlCh6s/edit?usp=sharing)  
+[技術仕様書](https://docs.google.com/document/d/1BT33lrkWnVqsaVDk59PR9j5sTTNF2xLjYFqtZrZAetg/edit?usp=sharing)  
+[最終報告書](https://docs.google.com/document/d/1dYzUiVV9gAjD2Zvu7EAJWZBX6uIGX7ShUa_9zsN2t3w/edit?usp=sharing)  
